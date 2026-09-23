@@ -1,8 +1,8 @@
 # Where this repo is hosted. Addon Applications inherit these values so a
 # single override at bootstrap time (terraform/bootstrap) propagates.
 gitOpsRepo:
-  url: https://github.com/aws-samples/containers-blog-maelstrom
-  branch: multi-agent-fsi-blog
+  url: https://github.com/sagarneeldubey/containers-blog-maelstrom
+  branch: main
 
 # Root path under the repo that holds the multi-agent-fsi-blog tree.
 basePath: multi-agent-fsi-blog
@@ -22,7 +22,7 @@ namespaces:
 # match the live cluster, so nothing is pinned to one cluster name.
 ack:
   clusterName: finops-agents
-  region: us-west-2
+  region: us-east-1
 
 # EKS cluster identity used by Agent Gateway to validate ServiceAccount tokens.
 # These are populated at bootstrap time by terraform/bootstrap (helm.parameters

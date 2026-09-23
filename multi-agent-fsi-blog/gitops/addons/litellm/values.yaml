@@ -42,9 +42,14 @@ serviceAccount:
   create: true
   name: litellm
 
+# NOTE: the region appears here and on each model_list entry below. Unlike the
+# rest of the stack, this file is NOT fed by terraform/bootstrap's
+# helm.parameters — ArgoCD reads it straight from git. Keep every occurrence in
+# sync with var.aws_region in terraform/cluster + terraform/bootstrap, or
+# LiteLLM will call Bedrock in a different region than the cluster.
 env:
   - name: AWS_REGION
-    value: us-west-2
+    value: us-east-1
   - name: LITELLM_MODE
     value: PRODUCTION
   - name: LITELLM_LOG
@@ -60,19 +65,19 @@ proxy_config:
     - model_name: claude-sonnet
       litellm_params:
         model: bedrock/us.anthropic.claude-sonnet-4-6
-        aws_region_name: us-west-2
+        aws_region_name: us-east-1
 
     # ---- Fallback: smaller, cheaper Haiku 4.5 ----
     - model_name: claude-haiku
       litellm_params:
         model: bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0
-        aws_region_name: us-west-2
+        aws_region_name: us-east-1
 
     # ---- Alias used by Strands agents (financial-*) ----
     - model_name: finops-primary
       litellm_params:
         model: bedrock/us.anthropic.claude-sonnet-4-6
-        aws_region_name: us-west-2
+        aws_region_name: us-east-1
 
   router_settings:
     routing_strategy: simple-shuffle

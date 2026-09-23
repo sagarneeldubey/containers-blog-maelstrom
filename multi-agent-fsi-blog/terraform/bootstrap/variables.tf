@@ -1,7 +1,7 @@
 variable "aws_region" {
   description = "AWS region hosting the EKS cluster"
   type        = string
-  default     = "us-west-2"
+  default     = "us-east-1"
 }
 
 variable "cluster_name" {
@@ -25,13 +25,13 @@ variable "argocd_domain" {
 variable "gitops_repo_url" {
   description = "Git repository URL hosting the multi-agent-fsi-blog/gitops tree"
   type        = string
-  default     = "https://github.com/aws-samples/containers-blog-maelstrom"
+  default     = "https://github.com/sagarneeldubey/containers-blog-maelstrom"
 }
 
 variable "gitops_repo_branch" {
   description = "Branch ArgoCD should track"
   type        = string
-  default     = "multi-agent-fsi-blog"
+  default     = "main"
 }
 
 variable "gitops_root_path" {

@@ -20,7 +20,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-REGION="${AWS_REGION:-us-west-2}"
+REGION="${AWS_REGION:-us-east-1}"
 CLUSTER="${CLUSTER_NAME:-finops-agents}"
 
 ok()   { printf '\033[32m✓\033[0m %s\n' "$*"; }

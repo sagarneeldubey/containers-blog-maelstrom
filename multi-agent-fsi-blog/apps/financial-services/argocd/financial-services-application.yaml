@@ -11,8 +11,8 @@ spec:
   source:
     # Optional standalone entry point. The normal deploy path is through the
     # platform-root app-of-apps (multi-agent-fsi-blog/gitops/root/).
-    repoURL: https://github.com/aws-samples/containers-blog-maelstrom
-    targetRevision: multi-agent-fsi-blog
+    repoURL: https://github.com/sagarneeldubey/containers-blog-maelstrom
+    targetRevision: main
     path: multi-agent-fsi-blog/apps/financial-services/gitops/financial-services-stack
     helm:
       valueFiles:

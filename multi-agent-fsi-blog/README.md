@@ -138,7 +138,7 @@ That kicks off five phases (about 20 minutes end-to-end, most of it EKS cluster 
 Environment overrides (optional):
 
 ```bash
-AWS_REGION=us-west-2 \
+AWS_REGION=us-east-1 \
 CLUSTER_NAME=finops-agents \
 GITOPS_REPO_URL=https://github.com/<your-fork>/containers-blog-maelstrom \
 ./scripts/bootstrap.sh

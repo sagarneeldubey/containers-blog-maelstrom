@@ -3,7 +3,7 @@ projectName: financial-services
 version: v1
 
 # AWS / EKS
-awsRegion: us-west-2
+awsRegion: us-east-1
 eksClusterName: finops-agents
 networkMode: PUBLIC
 
