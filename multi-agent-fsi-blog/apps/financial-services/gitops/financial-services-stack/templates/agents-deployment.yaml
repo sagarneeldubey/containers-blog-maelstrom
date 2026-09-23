@@ -47,6 +47,10 @@ Per-agent outputs come from connection Secrets, one per AgentCore resource the
 agent opted into. Each kro composite claim's RGD writes the underlying ACK
 resource's status.id into the Secret under key `id` — we fan them into the
 agent's env below. `id` is the AgentCore resource ID.
+
+The memory Secret carries a second key, `namespace`: the semantic strategy's
+namespace, surfaced as MEMORY_NAMESPACE so retrieval and extraction always
+agree on one path.
 */}}
 {{- range $agent := .Values.agents }}
 {{- $sa := printf "%s-sa" $agent.name }}
@@ -97,7 +101,10 @@ spec:
         {{- include "fs.projectedToken" (dict "root" $) | nindent 8 }}
       containers:
         - name: agent
-          image: "{{ $.Values.images.registry }}/{{ $agent.image.repository }}:{{ $agent.image.tag }}"
+          {{- /* Per-agent registry override, falling back to the shared one.
+                 Lets a single rebuilt agent be served from your own registry
+                 without republishing all five images. */}}
+          image: "{{ $agent.image.registry | default $.Values.images.registry }}/{{ $agent.image.repository }}:{{ $agent.image.tag }}"
           imagePullPolicy: {{ $.Values.images.pullPolicy }}
           ports:
             - containerPort: 8080
@@ -110,6 +117,19 @@ spec:
                   name: {{ printf "fs-%s-memory-outputs" $agent.name | quote }}
                   key: id
                   optional: true
+            # Read from the same Secret as MEMORY_ID so the namespace the agent
+            # queries can never drift from the one the strategy writes to.
+            # Still holds the literal {actorId}; the agent resolves it.
+            - name: MEMORY_NAMESPACE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "fs-%s-memory-outputs" $agent.name | quote }}
+                  key: namespace
+                  optional: true
+            - name: CLIENT_ACTOR_ID
+              value: {{ $.Values.agentCoreMemory.clientActorId | quote }}
+            - name: SESSION_ID
+              value: {{ $.Values.agentCoreMemory.sessionId | quote }}
             {{- end }}
             {{- if $agent.agentcore.browser }}
             - name: BROWSER_ID

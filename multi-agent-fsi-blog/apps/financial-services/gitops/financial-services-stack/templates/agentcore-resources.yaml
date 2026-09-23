@@ -121,7 +121,12 @@ spec:
   region: {{ $.Values.awsRegion }}
   name: {{ printf "fs_%s_memory" (replace "-" "_" $agent.name) | quote }}
   description: {{ printf "Memory for fs-%s" $agent.name | quote }}
-  eventExpiryDuration: 30
+  eventExpiryDuration: {{ $.Values.agentCoreMemory.eventExpiryDuration }}
+  # Long-term recall. The RGD turns this into a built-in SEMANTIC strategy on
+  # the ACK Memory and publishes the namespace into the outputs Secret, so the
+  # agent always reads from exactly the namespace the strategy writes to.
+  strategyName: {{ $.Values.agentCoreMemory.strategyName | quote }}
+  semanticNamespace: {{ $.Values.agentCoreMemory.semanticNamespace | quote }}
   tags:
     Agent: {{ $agent.name }}
   writeConnectionSecretName: {{ printf "fs-%s-memory-outputs" $agent.name }}

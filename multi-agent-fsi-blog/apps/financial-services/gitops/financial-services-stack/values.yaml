@@ -15,6 +15,31 @@ namespace: financial-services
 bedrockModelId: us.anthropic.claude-sonnet-4-6
 
 # ---------------------------------------------------------------------------
+# AgentCore Memory (applies to every agent with agentcore.memory = true)
+# ---------------------------------------------------------------------------
+# A Memory with no strategy keeps only raw short-term events and has no
+# namespace to search, so retrieve_memories() always comes back empty. The
+# built-in SEMANTIC strategy below extracts durable facts out of those events
+# into semanticNamespace, which is what makes cross-session recall work.
+#
+# Extraction is ASYNCHRONOUS (~2-3 min in practice), so a fact written this
+# turn is not retrievable on the same turn. It is a cross-session feature, not
+# a within-turn scratchpad.
+#
+# {actorId} is substituted by AgentCore when writing. Readers must pass a
+# fully-resolved namespace (the SDK rejects wildcards), so the agent swaps in
+# its CLIENT_ACTOR_ID at runtime.
+agentCoreMemory:
+  strategyName: semantic
+  semanticNamespace: "/actors/{actorId}/facts/"
+  eventExpiryDuration: 30
+  # Identity the advisor stores and recalls profiles under. One actor per
+  # end client in a real deployment; a single demo default here. sessionId
+  # scopes short-term events, actorId scopes the extracted long-term facts.
+  clientActorId: default-client
+  sessionId: default-session
+
+# ---------------------------------------------------------------------------
 # Agent definitions
 # ---------------------------------------------------------------------------
 # One list entry per agent. Each entry owns:
@@ -36,8 +61,12 @@ agents:
   - name: financial-advisor
     role: orchestrator
     image:
+      # Served from this account's ECR rather than the shared Docker Hub repo:
+      # v4 carries the AgentCore Memory fix (create_event + namespaced
+      # retrieve_memories). The other agents still use the published images.
+      registry: 789406175197.dkr.ecr.us-east-1.amazonaws.com
       repository: financial-services-agents
-      tag: financial-advisor-v3
+      tag: financial-advisor-v4
     agentcore:
       memory: true
       browser: false

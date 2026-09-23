@@ -8,7 +8,9 @@
 #      the AgentCore controller the ACK Capability installs, and
 #   2. a Secret named writeConnectionSecretName carrying the created memory's
 #      status.id under key `id` — the exact contract the agent Deployment reads
-#      as MEMORY_ID. kro's DAG only creates the Secret once status.id resolves.
+#      as MEMORY_ID — plus the semantic namespace under key `namespace`, read as
+#      MEMORY_NAMESPACE. kro's DAG only creates the Secret once status.id
+#      resolves.
 #
 # Note: we emit the Secret from kro directly rather than via an ACK
 # FieldExport. The AWS-managed ACK EKS Capability installs the service
@@ -30,6 +32,23 @@ spec:
       description: string | default=""
       eventExpiryDuration: integer | default=30
       tags: "map[string]string"
+      # ---- Long-term memory (semantic strategy) ----
+      # Without a strategy a Memory only retains raw short-term events, and
+      # RetrieveMemoryRecords has no namespace to search — retrieve_memories()
+      # returns nothing no matter how many events were written. The SEMANTIC
+      # strategy asynchronously extracts durable facts from those events into
+      # the namespace below, which is what makes recall work across sessions.
+      #
+      # This is a *built-in* strategy (no extraction/consolidation model
+      # overrides), so it needs no memoryExecutionRoleARN — AgentCore runs
+      # extraction with a service-managed model. A custom strategy WOULD
+      # require that role.
+      strategyName: string | default="semantic"
+      # Namespace the extracted facts are written to and read back from.
+      # {actorId} is resolved by AgentCore at write time. Readers must supply a
+      # fully-resolved namespace: the SDK rejects wildcards, so the agent
+      # substitutes {actorId} itself (see MEMORY_NAMESPACE in the chart).
+      semanticNamespace: string | default="/actors/{actorId}/facts/"
       # Name of the Secret the FieldExport publishes id into. Set by the
       # financial-services chart (was writeConnectionSecretToRef.name).
       writeConnectionSecretName: string | required=true
@@ -56,6 +75,15 @@ spec:
           description: ${schema.spec.description}
           eventExpiryDuration: ${schema.spec.eventExpiryDuration}
           tags: ${schema.spec.tags}
+          # Built-in SEMANTIC strategy. ACK adds this to an existing Memory in
+          # place (AWS reports UPDATING, then the strategy goes ACTIVE), so
+          # turning it on does not force a replace of an already-created memory.
+          memoryStrategies:
+            - semanticMemoryStrategy:
+                name: ${schema.spec.strategyName}
+                description: "Extracts durable client facts for cross-session recall"
+                namespaces:
+                  - ${schema.spec.semanticNamespace}
     - id: idSecret
       template:
         apiVersion: v1
@@ -66,3 +94,8 @@ spec:
           # Resolves only after the ACK Memory reports status.id, so kro
           # orders this Secret after the memory resource in the graph.
           id: ${memory.status.id}
+          # The namespace template, published alongside the id so the agent
+          # reads both from one Secret and nothing has to restate the path.
+          # Still contains the literal {actorId} placeholder for the agent to
+          # substitute.
+          namespace: ${schema.spec.semanticNamespace}

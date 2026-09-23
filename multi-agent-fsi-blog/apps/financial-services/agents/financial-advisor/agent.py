@@ -17,12 +17,23 @@ from strands import Agent, tool
 from _shared import a2a_client
 from _shared.model import build_model
 
-AWS_REGION = os.getenv("AWS_REGION", "us-west-2")
+AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 MEMORY_ID = os.getenv("MEMORY_ID", "")
-CLIENT_ACTOR_ID = os.getenv("CLIENT_ACTOR_ID", "default-client")
-SESSION_ID = os.getenv("SESSION_ID", "default-session")
+CLIENT_ACTOR_ID = os.getenv("CLIENT_ACTOR_ID") or "default-client"
+SESSION_ID = os.getenv("SESSION_ID") or "default-session"
+
+# Namespace of the Memory's semantic strategy, published by the kro RGD into
+# the same Secret that carries MEMORY_ID. AgentCore substitutes {actorId} when
+# it writes extracted facts; RetrieveMemoryRecords rejects wildcards and needs
+# a fully-resolved path, so we substitute it here for reads.
+MEMORY_NAMESPACE_TEMPLATE = os.getenv("MEMORY_NAMESPACE") or "/actors/{actorId}/facts/"
 
 console = Console()
+
+
+def _memory_namespace() -> str:
+    """Resolve the strategy namespace template for this actor."""
+    return MEMORY_NAMESPACE_TEMPLATE.replace("{actorId}", CLIENT_ACTOR_ID)
 
 
 def _memory_client():
@@ -39,17 +50,30 @@ def get_client_profile() -> dict[str, Any]:
     client = _memory_client()
     if client is None:
         return {"status": "skipped", "reason": "Memory not configured"}
+    namespace = _memory_namespace()
     try:
+        # Semantic search over the facts the strategy extracted from prior
+        # sessions' events. `namespace` is required and must be resolved;
+        # `top_k` caps the result count (there is no max_results parameter).
         response = client.retrieve_memories(
             memory_id=MEMORY_ID,
+            namespace=namespace,
             query="What is this client's risk tolerance, goals, and prior recommendations?",
-            max_results=5,
+            top_k=5,
         )
         if response:
-            return {"status": "success", "profile": [str(item) for item in response]}
-        return {"status": "empty", "profile": []}
+            facts = [
+                str((record.get("content") or {}).get("text") or record)
+                for record in response
+            ]
+            return {"status": "success", "profile": facts}
+        return {"status": "empty", "profile": [], "namespace": namespace}
     except Exception as exc:
-        return {"status": "error", "error": str(exc)}
+        # Surface the failure instead of letting the model read it as "new
+        # client" — a silent empty result is indistinguishable from a broken
+        # call, which is how this stayed broken.
+        console.print(f"[red]get_client_profile failed[/red] ns={namespace}: {exc}")
+        return {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
 
 
 @tool
@@ -59,16 +83,29 @@ def save_client_profile(profile: str) -> dict[str, Any]:
     if client is None:
         return {"status": "skipped", "reason": "Memory not configured"}
     try:
-        client.save_turn(
+        # create_event appends a turn to short-term storage; the semantic
+        # strategy then extracts durable facts from it asynchronously.
+        # `messages` is a list of (text, role) tuples. save_turn() no longer
+        # exists on MemoryClient.
+        response = client.create_event(
             memory_id=MEMORY_ID,
             actor_id=CLIENT_ACTOR_ID,
             session_id=SESSION_ID,
-            user_input=f"Client profile: {profile}",
-            agent_response="Profile stored",
+            messages=[
+                (f"Client profile: {profile}", "USER"),
+                ("Profile stored", "ASSISTANT"),
+            ],
         )
-        return {"status": "success"}
+        return {
+            "status": "success",
+            "eventId": response.get("eventId"),
+            # Extraction is async (~2-3 min), so this fact will not come back
+            # from get_client_profile() until the strategy has processed it.
+            "note": "Stored; searchable after asynchronous extraction completes",
+        }
     except Exception as exc:
-        return {"status": "error", "error": str(exc)}
+        console.print(f"[red]save_client_profile failed[/red]: {exc}")
+        return {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
 
 
 def _delegate(agent_name: str, task: str) -> dict[str, Any]:

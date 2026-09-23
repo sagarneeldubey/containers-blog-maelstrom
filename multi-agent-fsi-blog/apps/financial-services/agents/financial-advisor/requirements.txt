@@ -1,7 +1,12 @@
 strands-agents
 strands-agents-tools
 boto3
-bedrock-agentcore
+# Pinned: the memory calls in agent.py (create_event, retrieve_memories with
+# namespace/top_k) are verified against this version's MemoryClient. This SDK
+# has renamed/reshaped those methods before (save_turn was removed), so an
+# unpinned rebuild can silently break memory. Re-verify the MemoryClient
+# signatures before bumping.
+bedrock-agentcore==1.7.0
 fastapi
 uvicorn
 httpx
